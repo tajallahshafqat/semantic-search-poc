@@ -1,2 +1,5 @@
 torch
 sentence-transformers
+nltk
+psycopg2
+python-dotenv
