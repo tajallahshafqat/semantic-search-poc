@@ -6,6 +6,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import psycopg2
+from pgvector.psycopg2 import register_vector
 import json
 import string
 from dotenv import load_dotenv
@@ -83,14 +84,17 @@ def query_embeddings(job):
         port=DB_PORT
     )
     cursor = conn.cursor()
+    cursor.execute('CREATE EXTENSION IF NOT EXISTS vector')
+
+    register_vector(conn)
 
     embeddings = create_embeddings(job)
 
     query = """
-    SELECT id, embeddings, job_id, embeddings <=> %s AS distance
+    SELECT id, embeddings, job_id, embeddings <=> %s::vector AS distance
     FROM jobs_embeddings
-    ORDER BY embeddings <=> %s
-    LIMIT 5;
+    ORDER BY embeddings <=> %s::vector
+    LIMIT 10;
     """
     cursor.execute(query, (embeddings, embeddings))
     results = cursor.fetchall()
@@ -103,11 +107,12 @@ def query_embeddings(job):
         print(f"ID: {result[0]}, Job title: {job_title}, Distance: {result[3]}")
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == 'store':
-        f = open("data/jobs.json")
-        data = json.load(f)
+    f = open("data/jobs.json")
+    jobs_json = json.load(f)
 
-        jobs = data["jobs"]
+    jobs = jobs_json["jobs"]
+    
+    if len(sys.argv) > 1 and sys.argv[1] == 'store':
         subset = jobs[:50000]
 
         for job in subset:
@@ -115,10 +120,10 @@ if __name__ == '__main__':
 
     elif len(sys.argv) > 1 and sys.argv[1] == 'query':
         f = open("data/query.json")
-        data = json.load(f)
+        query_json = json.load(f)
 
-        job = data["job"]
-        query_embeddings(job)
+        query = query_json["job"]
+        query_embeddings(query)
 
     else:
         print("Invalid argument. Please provide 'store' or 'query'.")

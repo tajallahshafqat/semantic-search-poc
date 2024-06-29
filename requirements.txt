@@ -1,5 +1,5 @@
-torch
 sentence-transformers
 nltk
 psycopg2
+pgvector
 python-dotenv
